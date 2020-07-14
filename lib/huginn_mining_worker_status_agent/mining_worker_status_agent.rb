@@ -7,9 +7,13 @@ module Agents
 
     description do
       <<-MD
-      The mining worker status agent fetches worker status (Offline/Online) and creates an event when it changes.
+      The mining worker status agent fetches worker status (Offline/Online/etc) and creates an event when it changes.
 
-      `add_release_details` is used when it's a notification release, it fetches tag_name/tarball_url/html_url.
+      `pool_url` needed for mining pool website (like https://clopool.pro )
+
+      `wallet_address` needed for the wanted address
+
+      `status_wanted` can be workersOnline, workersOffline or workersTotal
 
       `expected_receive_period_in_days` is used to determine if the Agent is working. Set it to the maximum number of days
       that you anticipate passing without this Agent receiving an incoming Event.
@@ -19,17 +23,7 @@ module Agents
     event_description <<-MD
       Events look like this:
         {
-          "id": "xxxxx",
-          "unread": true,
-          "reason": "subscribed",
-          "updated_at": "2020-06-27T14:44:56Z",
-          "last_read_at": "2020-06-28T00:32:34Z",
-          "subject": {
-            "title": "xxxxxx",
-            ...
-            },
-          "url": "https://api.github.com/notifications/threads/xxxxxx",
-          "subscription_url": "https://api.github.com/notifications/threads/xxxxxx/subscription"
+          "workersOnline": 3
         }
     MD
 
@@ -46,6 +40,7 @@ module Agents
     form_configurable :wallet_address, type: :string
     form_configurable :status_wanted, type: :array, values: ['workersOnline', 'workersOffline', 'workersTotal']
     form_configurable :expected_receive_period_in_days, type: :string
+
     def validate_options
       unless options['wallet_address'].present?
         errors.add(:base, "wallet_address is a required field")
