@@ -22,9 +22,10 @@ module Agents
 
     event_description <<-MD
       Events look like this:
-        {
-          "workersOnline": 3
-        }
+
+          {
+            "workersOnline": 3
+          }
     MD
 
     def default_options
