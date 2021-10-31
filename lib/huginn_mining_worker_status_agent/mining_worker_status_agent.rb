@@ -3,7 +3,7 @@ module Agents
     include FormConfigurable
     can_dry_run!
     no_bulk_receive!
-    default_schedule '1h'
+    default_schedule 'every_1h'
 
     description do
       <<-MD
@@ -11,9 +11,11 @@ module Agents
 
       `pool_url` needed for mining pool website (like https://clopool.pro )
 
-      `wallet_address` needed for the wanted address
+      `debug` is used to verbose mode.
 
-      `status_wanted` can be workersOnline, workersOffline or workersTotal
+      `check_hashrate` is used to create event if global/workker hashrate is null.
+
+      `wallet_address` needed for the wanted address
 
       `expected_receive_period_in_days` is used to determine if the Agent is working. Set it to the maximum number of days
       that you anticipate passing without this Agent receiving an incoming Event.
@@ -32,15 +34,17 @@ module Agents
       {
         'wallet_address' => '',
         'pool_url' => '',
-        'expected_receive_period_in_days' => '2',
-        'status_wanted' => 'workersOnline'
+        'debug' => 'false',
+        'check_hashrate' => 'false',
+        'expected_receive_period_in_days' => '2'
       }
     end
 
     form_configurable :pool_url, type: :string
     form_configurable :wallet_address, type: :string
-    form_configurable :status_wanted, type: :array, values: ['workersOnline', 'workersOffline', 'workersTotal']
     form_configurable :expected_receive_period_in_days, type: :string
+    form_configurable :debug, type: :boolean
+    form_configurable :check_hashrate, type: :boolean
 
     def validate_options
       unless options['wallet_address'].present?
@@ -67,7 +71,14 @@ module Agents
     private
 
     def fetch
-      uri = URI.parse(interpolated[:pool_url] + "/api/accounts/" + interpolated[:wallet_address])
+      domain = URI.parse(interpolated[:pool_url]).host.split(".")[-2,2].join(".")
+      case domain
+      when "nanopool.org"
+        url_path = '/api/v1/user/'
+      else
+        log "invalid domain!"
+      end
+      uri = URI.parse(interpolated[:pool_url] + url_path + interpolated[:wallet_address])
       request = Net::HTTP::Get.new(uri)
     
       req_options = {
@@ -78,15 +89,31 @@ module Agents
         http.request(request)
       end
 
-      notification_json = JSON.parse(response.body)
-      
-      payload = { interpolated[:status_wanted] => notification_json[interpolated[:status_wanted]] }
-    
-      log "fetch notification request status : #{response.code}"
-    
-      if payload.to_s != memory['last_status']
-        memory['last_status'] = payload.to_s
-        create_event payload: payload
+      log "request  status : #{response.code}"
+
+      if interpolated['debug'] == 'true'
+        log "response.body"
+        log response.body
+      end
+
+      payload = JSON.parse(response.body)
+
+      if interpolated['debug'] == 'true'
+        log " global hashrate = #{payload['data']['hashrate']}"
+      end
+
+      if interpolated['check_hashrate'] == 'true'
+        if payload['data']['hashrate'] == '0.0'
+          create_event :payload => { 'poll' => interpolated[:pool_url], 'wallet' => interpolated[:wallet_address], 'status' => "hashrate is 0", 'hashrate' => payload['data']['hashrate'] }
+        end
+        payload["data"]["workers"].each do |worker|
+          if interpolated['debug'] == 'true'
+            log "#{worker['id']} hashrate = #{worker['hashrate']}"
+          end
+          if worker["hashrate"] == '0.0'
+            create_event :payload => { 'poll' => interpolated[:pool_url], 'wallet' => interpolated[:wallet_address], 'status' => "hashrate is 0", 'hashrate' => payload['data']['hashrate'], 'worker' => worker["id"] }
+          end
+        end
       end
     end    
   end
