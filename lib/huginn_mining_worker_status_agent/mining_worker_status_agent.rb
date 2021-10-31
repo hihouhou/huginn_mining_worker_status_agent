@@ -104,14 +104,14 @@ module Agents
 
       if interpolated['check_hashrate'] == 'true'
         if payload['data']['hashrate'] == '0.0'
-          create_event :payload => { 'poll' => interpolated[:pool_url], 'wallet' => interpolated[:wallet_address], 'status' => "hashrate is 0", 'hashrate' => payload['data']['hashrate'] }
+          create_event :payload => { 'pool' => interpolated[:pool_url], 'wallet' => interpolated[:wallet_address], 'status' => "hashrate is 0", 'hashrate' => payload['data']['hashrate'] }
         end
         payload["data"]["workers"].each do |worker|
           if interpolated['debug'] == 'true'
             log "#{worker['id']} hashrate = #{worker['hashrate']}"
           end
           if worker["hashrate"] == '0.0'
-            create_event :payload => { 'poll' => interpolated[:pool_url], 'wallet' => interpolated[:wallet_address], 'status' => "hashrate is 0", 'hashrate' => worker['hashrate'], 'worker' => worker["id"] }
+            create_event :payload => { 'pool' => interpolated[:pool_url], 'wallet' => interpolated[:wallet_address], 'status' => "hashrate is 0", 'hashrate' => worker['hashrate'], 'worker' => worker["id"] }
           end
         end
       end
